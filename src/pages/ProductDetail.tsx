@@ -1,6 +1,16 @@
-import { ArrowLeft, Heart, MapPin, Calendar, User as UserIcon } from "lucide-react";
-import { ImageWithFallback } from "../components/ImageWithFallback";
+import { ArrowLeft, Heart, MapPin, Calendar, User as UserIcon, MessageCircle, Handshake } from "lucide-react";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useAuth } from "../contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { api } from "../utils/api";
+import { toast } from "sonner@2.0.3";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 
 interface ProductDetailPageProps {
   productId: string;
@@ -18,7 +28,8 @@ const mockProducts: Record<string, any> = {
     lookingFor: "Kayak or camping gear",
     location: "San Francisco, CA",
     postedDate: "Nov 1, 2024",
-    seller: "John Doe"
+    seller: "John Doe",
+    userId: "mock-user-1"
   },
   "2": { 
     id: "2", 
@@ -29,22 +40,123 @@ const mockProducts: Record<string, any> = {
     lookingFor: "Bicycle or hiking equipment",
     location: "Portland, OR",
     postedDate: "Oct 28, 2024",
-    seller: "Sarah M."
+    seller: "Sarah M.",
+    userId: "mock-user-2"
   },
 };
 
 export function ProductDetailPage({ productId, onBack }: ProductDetailPageProps) {
   const { user, accessToken } = useAuth();
   const product = mockProducts[productId] || mockProducts["1"];
+  
+  const [isSaved, setIsSaved] = useState(false);
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [showOfferDialog, setShowOfferDialog] = useState(false);
+  const [contactMessage, setContactMessage] = useState("");
+  const [offerMessage, setOfferMessage] = useState("");
+  const [offerItems, setOfferItems] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const handleSave = () => {
-    console.log("Save product:", productId);
-    // TODO: Implement save functionality with API
+  useEffect(() => {
+    // Check if listing is saved
+    if (user && accessToken) {
+      api.getSavedListings(accessToken)
+        .then(data => {
+          setIsSaved(data.savedListings?.includes(productId) || false);
+        })
+        .catch(err => console.error("Error checking saved status:", err));
+    }
+  }, [user, accessToken, productId]);
+
+  const handleSave = async () => {
+    if (!user || !accessToken) {
+      toast.error("Please sign in to save listings");
+      return;
+    }
+
+    try {
+      if (isSaved) {
+        await api.removeSavedListing(productId, accessToken);
+        setIsSaved(false);
+        toast.success("Removed from saved listings");
+      } else {
+        await api.saveListing(productId, accessToken);
+        setIsSaved(true);
+        toast.success("Added to saved listings");
+      }
+    } catch (error) {
+      console.error("Error saving listing:", error);
+      toast.error("Failed to update saved listings");
+    }
   };
 
   const handleContact = () => {
-    console.log("Contact seller");
-    // TODO: Implement messaging
+    if (!user || !accessToken) {
+      toast.error("Please sign in to contact the seller");
+      return;
+    }
+    setShowContactDialog(true);
+  };
+
+  const handleSendMessage = async () => {
+    if (!contactMessage.trim()) {
+      toast.error("Please enter a message");
+      return;
+    }
+
+    setSending(true);
+    try {
+      await api.sendMessage({
+        listingId: productId,
+        recipientId: product.userId,
+        subject: `Inquiry about: ${product.title}`,
+        message: contactMessage,
+      }, accessToken!);
+      
+      toast.success("Message sent successfully!");
+      setShowContactDialog(false);
+      setContactMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleMakeOffer = () => {
+    if (!user || !accessToken) {
+      toast.error("Please sign in to make an offer");
+      return;
+    }
+    setShowOfferDialog(true);
+  };
+
+  const handleSubmitOffer = async () => {
+    if (!offerItems.trim()) {
+      toast.error("Please describe what you're offering");
+      return;
+    }
+
+    setSending(true);
+    try {
+      await api.createOffer({
+        listingId: productId,
+        recipientId: product.userId,
+        offeredItems: offerItems,
+        message: offerMessage,
+      }, accessToken!);
+      
+      toast.success("Offer sent successfully!");
+      setShowOfferDialog(false);
+      setOfferItems("");
+      setOfferMessage("");
+    } catch (error) {
+      console.error("Error creating offer:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send offer");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -132,29 +244,129 @@ export function ProductDetailPage({ productId, onBack }: ProductDetailPageProps)
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleContact}
+                  className="flex-1 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Contact Seller
+                </button>
+                <button
+                  onClick={handleSave}
+                  className={`px-6 py-3 border-2 rounded-lg transition-colors ${
+                    isSaved 
+                      ? "bg-red-50 border-red-300 hover:bg-red-100" 
+                      : "border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <Heart className={`w-5 h-5 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+                </button>
+              </div>
+
               <button
-                onClick={handleContact}
-                className="flex-1 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                onClick={handleMakeOffer}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
               >
-                Contact Seller
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Heart className="w-5 h-5" />
+                <Handshake className="w-5 h-5" />
+                Make an Offer
               </button>
             </div>
 
             {!user && (
               <p className="text-sm text-gray-600 mt-3 text-center">
-                Sign in to contact the seller
+                Sign in to contact the seller or make an offer
               </p>
             )}
           </div>
         </div>
       </div>
+
+      {/* Contact Dialog */}
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contact Seller</DialogTitle>
+            <DialogDescription>
+              Send a message to {product.seller} about {product.title}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <textarea
+              rows={6}
+              placeholder="Write your message..."
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
+              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleSendMessage}
+                disabled={sending}
+                className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+              >
+                {sending ? "Sending..." : "Send Message"}
+              </button>
+              <button
+                onClick={() => setShowContactDialog(false)}
+                className="px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Make Offer Dialog */}
+      <Dialog open={showOfferDialog} onOpenChange={setShowOfferDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Make a Trade Offer</DialogTitle>
+            <DialogDescription>
+              Propose what you'd like to trade for {product.title}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="block mb-2 text-sm">What are you offering? *</label>
+              <input
+                type="text"
+                placeholder="e.g., Canon Camera EOS R5, Mountain Bike"
+                value={offerItems}
+                onChange={(e) => setOfferItems(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Additional message (optional)</label>
+              <textarea
+                rows={4}
+                placeholder="Add any additional details about your offer..."
+                value={offerMessage}
+                onChange={(e) => setOfferMessage(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmitOffer}
+                disabled={sending}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+              >
+                {sending ? "Sending..." : "Send Offer"}
+              </button>
+              <button
+                onClick={() => setShowOfferDialog(false)}
+                className="px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Related Items */}
       <div className="mt-12">

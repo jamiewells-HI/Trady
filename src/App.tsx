@@ -11,6 +11,9 @@ import { NewListingPage } from "./pages/NewListing";
 import { SavedListingsPage } from "./pages/SavedListings";
 import { AuthPage } from "./pages/Auth";
 import { ProductDetailPage } from "./pages/ProductDetail";
+import { MessagesPage } from "./pages/Messages";
+import { OffersPage } from "./pages/Offers";
+import { Toaster } from "./components/ui/sonner";
 
 type Page = 
   | "home" 
@@ -24,7 +27,9 @@ type Page =
   | "new-listing"
   | "saved-listings"
   | "auth"
-  | "product-detail";
+  | "product-detail"
+  | "messages"
+  | "offers";
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>("home");
@@ -75,19 +80,31 @@ function AppContent() {
         return <SavedListingsPage onProductClick={handleProductClick} />;
       case "product-detail":
         return <ProductDetailPage productId={selectedProductId} onBack={handleBackFromProduct} />;
+      case "messages":
+        return <MessagesPage />;
+      case "offers":
+        return <OffersPage />;
       default:
         return <HomePage onProductClick={handleProductClick} />;
     }
   };
 
   if (currentPage === "auth") {
-    return renderPage();
+    return (
+      <>
+        {renderPage()}
+        <Toaster />
+      </>
+    );
   }
 
   return (
-    <Layout onSearch={handleSearch} onNavigate={handleNavigate}>
-      {renderPage()}
-    </Layout>
+    <>
+      <Layout onSearch={handleSearch} onNavigate={handleNavigate}>
+        {renderPage()}
+      </Layout>
+      <Toaster />
+    </>
   );
 }
 

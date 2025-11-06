@@ -1,5 +1,9 @@
 import { Heart } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { api } from "../utils/api";
+import { toast } from "sonner@2.0.3";
 
 interface ItemCardProps {
   id?: string | number;
@@ -20,6 +24,50 @@ export function ItemCard({
   onSave,
   onClick 
 }: ItemCardProps) {
+  const { user, accessToken } = useAuth();
+  const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    // Check if this item is saved
+    if (user && accessToken && id) {
+      api.getSavedListings(accessToken)
+        .then(data => {
+          setIsSaved(data.savedListings?.includes(String(id)) || false);
+        })
+        .catch(err => console.error("Error checking saved status:", err));
+    }
+  }, [user, accessToken, id]);
+
+  const handleSaveClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user || !accessToken) {
+      toast.error("Please sign in to save listings");
+      return;
+    }
+
+    if (!id) {
+      toast.error("Cannot save this item");
+      return;
+    }
+
+    try {
+      if (isSaved) {
+        await api.removeSavedListing(String(id), accessToken);
+        setIsSaved(false);
+        toast.success("Removed from saved listings");
+      } else {
+        await api.saveListing(String(id), accessToken);
+        setIsSaved(true);
+        toast.success("Added to saved listings");
+      }
+      onSave?.();
+    } catch (error) {
+      console.error("Error saving listing:", error);
+      toast.error("Failed to update saved listings");
+    }
+  };
+
   return (
     <div 
       className="bg-white rounded-md shadow-sm hover:shadow-lg transition-shadow cursor-pointer group"
@@ -42,13 +90,10 @@ export function ItemCard({
         
         {/* Save button */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onSave?.();
-          }}
+          onClick={handleSaveClick}
           className="absolute top-1.5 right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100"
         >
-          <Heart className="w-3 h-3" />
+          <Heart className={`w-3 h-3 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
         </button>
 
         {/* Ad badge */}

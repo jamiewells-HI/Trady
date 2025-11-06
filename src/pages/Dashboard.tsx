@@ -1,4 +1,4 @@
-import { User, History, Plus, Heart } from "lucide-react";
+import { User, History, Plus, Heart, MessageCircle, Handshake } from "lucide-react";
 
 const dashboardCards = [
   {
@@ -9,18 +9,30 @@ const dashboardCards = [
   },
   {
     id: 2,
+    title: "Messages",
+    icon: MessageCircle,
+    description: "View messages from traders",
+  },
+  {
+    id: 3,
+    title: "Offers",
+    icon: Handshake,
+    description: "Manage your trade offers",
+  },
+  {
+    id: 4,
     title: "History",
     icon: History,
     description: "View your trading history",
   },
   {
-    id: 3,
+    id: 5,
     title: "New Listing",
     icon: Plus,
     description: "Create a new trade listing",
   },
   {
-    id: 4,
+    id: 6,
     title: "Saved Listings",
     icon: Heart,
     description: "View your saved items",
@@ -35,6 +47,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const handleCardClick = (title: string) => {
     const pageMap: Record<string, string> = {
       "Account Details": "account-details",
+      "Messages": "messages",
+      "Offers": "offers",
       "History": "history",
       "New Listing": "new-listing",
       "Saved Listings": "saved-listings",
@@ -49,7 +63,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="mb-8">Your Account</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {dashboardCards.map((card) => {
           const Icon = card.icon;
           return (
