@@ -1,66 +1,178 @@
 import { ItemCard } from "../components/ItemCard";
+import { useState, useEffect } from "react";
+import { api } from "../utils/api";
+import { ChevronDown } from "lucide-react";
+
+interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  condition: string;
+  lookingFor: string;
+  images: string[];
+  userId: string;
+  createdAt: string;
+}
 
 interface CategoryPageProps {
   category: string;
   onProductClick?: (productId: string) => void;
 }
 
-const categoryItems: Record<string, Array<{ id: number; title: string; description: string; isAd?: boolean }>> = {
-  "water-sports": [
-    { id: 1, title: "Kayak", description: "Single person kayak with paddle", isAd: true },
-    { id: 2, title: "Surfboard", description: "Longboard, excellent condition" },
-    { id: 3, title: "Paddle Board", description: "Inflatable SUP with accessories" },
-    { id: 4, title: "Wetsuit", description: "Full body, size M" },
-    { id: 5, title: "Snorkel Set", description: "Mask, snorkel and fins included" },
-    { id: 6, title: "Water Skis", description: "Professional grade equipment" },
-    { id: 7, title: "Life Jacket", description: "Adult size, coast guard approved" },
-    { id: 8, title: "Diving Fins", description: "Ad: Premium diving gear", isAd: true },
-  ],
-  camping: [
-    { id: 1, title: "Tent - 4 Person", description: "Easy setup, weatherproof", isAd: true },
-    { id: 2, title: "Sleeping Bag", description: "Winter rated, -10°C" },
-    { id: 3, title: "Camping Stove", description: "Portable gas stove" },
-    { id: 4, title: "Backpack", description: "60L hiking backpack" },
-    { id: 5, title: "Camping Chair", description: "Foldable and lightweight" },
-    { id: 6, title: "Cooler Box", description: "Large 50L capacity" },
-    { id: 7, title: "Headlamp", description: "Ad: Rechargeable LED", isAd: true },
-    { id: 8, title: "Water Filter", description: "Portable purification system" },
-  ],
-  clothing: [
-    { id: 1, title: "Hiking Boots", description: "Size 10, waterproof", isAd: true },
-    { id: 2, title: "Rain Jacket", description: "Breathable, size L" },
-    { id: 3, title: "Fleece Pullover", description: "Warm and cozy, size M" },
-    { id: 4, title: "Cargo Pants", description: "Outdoor pants, size 32" },
-    { id: 5, title: "Winter Gloves", description: "Insulated, touchscreen compatible" },
-    { id: 6, title: "Beanie Hat", description: "Ad: Wool blend, one size", isAd: true },
-    { id: 7, title: "Thermal Base Layer", description: "Moisture-wicking, size L" },
-    { id: 8, title: "Hiking Socks", description: "Merino wool, size 9-11" },
-  ],
-};
-
 export function CategoryPage({ category, onProductClick }: CategoryPageProps) {
-  const items = categoryItems[category] || [];
+  const [allListings, setAllListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [condition, setCondition] = useState("All");
+  const [sortOrder, setSortOrder] = useState("Newest");
+
+  useEffect(() => {
+    loadListings();
+  }, []);
+
+  const loadListings = async () => {
+    try {
+      const response = await api.getListings();
+      setAllListings(response.listings || []);
+    } catch (error) {
+      console.error("Failed to load listings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter by category and condition
+  const filteredListings = allListings.filter((listing) => {
+    const matchesCategory = listing.category === category;
+    const matchesCondition = condition === "All" || listing.condition === condition;
+    return matchesCategory && matchesCondition;
+  });
+
+  // Sort logic
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    switch (sortOrder) {
+      case "Newest":
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case "Oldest":
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case "Title A-Z":
+        return a.title.localeCompare(b.title);
+      case "Title Z-A":
+        return b.title.localeCompare(a.title);
+      default:
+        return 0;
+    }
+  });
+
   const categoryName = category
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="mb-6">{categoryName}</h1>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-        {items.map((item) => (
-          <ItemCard
-            key={item.id}
-            id={item.id}
-            title={item.title}
-            description={item.description}
-            isAd={item.isAd}
-            onClick={() => onProductClick?.(String(item.id))}
+      {/* Filters */}
+      <div className="bg-gray-200 rounded-lg p-4 mb-8">
+        <div className="flex flex-wrap gap-4">
+          <FilterDropdown 
+            label="Condition" 
+            value={condition} 
+            options={["All", "new", "like-new", "good", "fair", "used"]}
+            onChange={setCondition} 
           />
-        ))}
+          <FilterDropdown 
+            label="Sort By" 
+            value={sortOrder} 
+            options={["Newest", "Oldest", "Title A-Z", "Title Z-A"]}
+            onChange={setSortOrder} 
+          />
+        </div>
       </div>
+
+      {/* Results count */}
+      <div className="mb-4 text-gray-600">
+        {sortedListings.length} item{sortedListings.length !== 1 ? 's' : ''} in {categoryName}
+      </div>
+
+      {sortedListings.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          {sortedListings.map((item) => (
+            <ItemCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              description={item.description}
+              imageUrl={item.images?.[0]}
+              onClick={() => onProductClick?.(item.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 text-gray-500">
+          No items in this category yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterDropdown({ 
+  label, 
+  value, 
+  options,
+  onChange 
+}: { 
+  label: string; 
+  value: string; 
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        <span>{label}: {value}</span>
+        <ChevronDown className="w-4 h-4" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-20 min-w-[150px]">
+            {options.map((option) => (
+              <button
+                key={option}
+                onClick={() => {
+                  onChange(option);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                  value === option ? 'bg-gray-100' : ''
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

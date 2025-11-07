@@ -1,25 +1,18 @@
 import { ChevronDown } from "lucide-react";
 import { ItemCard } from "../components/ItemCard";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../utils/api";
 
-const searchResults = [
-  { id: 1, title: "Kayak", description: "Ad: Premium water sports", isAd: true },
-  { id: 2, title: "Paddle Board", description: "Inflatable SUP with pump" },
-  { id: 3, title: "Snorkel Set", description: "Mask, snorkel, and fins" },
-  { id: 4, title: "Water Skis", description: "Professional grade skis" },
-  { id: 5, title: "Life Vest", description: "Adult size, coast guard approved" },
-  { id: 6, title: "Wetsuit", description: "Ad: Full body protection", isAd: true },
-  { id: 7, title: "Diving Mask", description: "Anti-fog professional mask" },
-  { id: 8, title: "Swim Fins", description: "Ad: High performance fins", isAd: true },
-  { id: 9, title: "Beach Umbrella", description: "Large UV protection" },
-  { id: 10, title: "Surfboard", description: "Longboard, great condition" },
-  { id: 11, title: "Boogie Board", description: "Perfect for kids" },
-  { id: 12, title: "Water Shoes", description: "Size 9, quick dry" },
-];
-
-interface FilterOption {
-  label: string;
-  value: string;
+interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  condition: string;
+  lookingFor: string;
+  images: string[];
+  userId: string;
+  createdAt: string;
 }
 
 interface SearchResultsPageProps {
@@ -27,57 +20,171 @@ interface SearchResultsPageProps {
   onProductClick?: (productId: string) => void;
 }
 
-export function SearchResultsPage({ searchQuery = "water sports", onProductClick }: SearchResultsPageProps) {
-  const [category, setCategory] = useState("None");
-  const [type, setType] = useState("None");
-  const [gender, setGender] = useState("None");
-  const [sortOrder, setSortOrder] = useState("None");
+export function SearchResultsPage({ searchQuery = "", onProductClick }: SearchResultsPageProps) {
+  const [allListings, setAllListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState("All");
+  const [condition, setCondition] = useState("All");
+  const [sortOrder, setSortOrder] = useState("Newest");
+
+  useEffect(() => {
+    loadListings();
+  }, []);
+
+  const loadListings = async () => {
+    try {
+      const response = await api.getListings();
+      setAllListings(response.listings || []);
+    } catch (error) {
+      console.error("Failed to load listings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter and search logic
+  const filteredListings = allListings.filter((listing) => {
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = 
+      listing.title.toLowerCase().includes(query) ||
+      listing.description.toLowerCase().includes(query) ||
+      listing.lookingFor?.toLowerCase().includes(query);
+
+    const matchesCategory = category === "All" || listing.category === category;
+    const matchesCondition = condition === "All" || listing.condition === condition;
+
+    return matchesSearch && matchesCategory && matchesCondition;
+  });
+
+  // Sort logic
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    switch (sortOrder) {
+      case "Newest":
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case "Oldest":
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case "Title A-Z":
+        return a.title.localeCompare(b.title);
+      case "Title Z-A":
+        return b.title.localeCompare(a.title);
+      default:
+        return 0;
+    }
+  });
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <h1 className="mb-6">Showing Trades With "{searchQuery}"...</h1>
+      <h1 className="mb-6">
+        {searchQuery ? `Showing Trades With "${searchQuery}"...` : "All Trades"}
+      </h1>
 
       {/* Filters */}
       <div className="bg-gray-200 rounded-lg p-4 mb-8">
         <div className="flex flex-wrap gap-4">
-          <FilterButton label="Category" value={category} onChange={setCategory} />
-          <FilterButton label="Type" value={type} onChange={setType} />
-          <FilterButton label="Gender" value={gender} onChange={setGender} />
-          <FilterButton label="Sort Order" value={sortOrder} onChange={setSortOrder} />
+          <FilterDropdown 
+            label="Category" 
+            value={category} 
+            options={["All", "water-sports", "camping", "clothing", "other"]}
+            onChange={setCategory} 
+          />
+          <FilterDropdown 
+            label="Condition" 
+            value={condition} 
+            options={["All", "new", "like-new", "good", "fair", "used"]}
+            onChange={setCondition} 
+          />
+          <FilterDropdown 
+            label="Sort By" 
+            value={sortOrder} 
+            options={["Newest", "Oldest", "Title A-Z", "Title Z-A"]}
+            onChange={setSortOrder} 
+          />
         </div>
       </div>
 
       {/* Results Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-        {searchResults.map((item) => (
-          <ItemCard
-            key={item.id}
-            id={item.id}
-            title={item.title}
-            description={item.description}
-            isAd={item.isAd}
-            onClick={() => onProductClick?.(String(item.id))}
-          />
-        ))}
+      <div className="mb-4 text-gray-600">
+        Found {sortedListings.length} result{sortedListings.length !== 1 ? 's' : ''}
       </div>
+
+      {sortedListings.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          {sortedListings.map((item) => (
+            <ItemCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              description={item.description}
+              imageUrl={item.images?.[0]}
+              onClick={() => onProductClick?.(item.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 text-gray-500">
+          No items found matching your search criteria.
+        </div>
+      )}
     </div>
   );
 }
 
-function FilterButton({ 
+function FilterDropdown({ 
   label, 
   value, 
+  options,
   onChange 
 }: { 
   label: string; 
   value: string; 
+  options: string[];
   onChange: (value: string) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <button className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors">
-      <span>{label}: {value}</span>
-      <ChevronDown className="w-4 h-4" />
-    </button>
+    <div className="relative">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        <span>{label}: {value}</span>
+        <ChevronDown className="w-4 h-4" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-20 min-w-[150px]">
+            {options.map((option) => (
+              <button
+                key={option}
+                onClick={() => {
+                  onChange(option);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                  value === option ? 'bg-gray-100' : ''
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

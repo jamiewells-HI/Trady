@@ -78,29 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
-
-    if (error) throw error;
-
-    if (data.session) {
-      setUser({
-        id: data.session.user.id,
-        email: data.session.user.email!,
-        name: data.session.user.user_metadata?.name,
-      });
-      setAccessToken(data.session.access_token);
-    }
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setAccessToken(null);
-  };
-
   const signUp = async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -116,6 +93,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Note: In production, users would need to verify their email
     // For development, we're auto-confirming on the server side
+  };
+
+  const signInWithGoogle = async () => {
+    // Do not forget to complete setup at https://supabase.com/docs/guides/auth/social-login/auth-google
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setAccessToken(null);
   };
 
   return (

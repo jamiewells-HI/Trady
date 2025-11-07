@@ -1,7 +1,6 @@
 import { Search, User, LogOut } from "lucide-react";
-import imgRectangle from "../imports/figma:asset/97dda34dfdbfa15b52892f13402327c43930bb20.png";
-import imgRectangle1 from "../imports/figma:asset/d051d24443c4eaabf50ef9f1fc06f06fd74a741d.png";
 import { useAuth } from "../contexts/AuthContext";
+import { useState } from "react";
 
 interface NavigationProps {
   onSearch?: (query: string) => void;
@@ -10,24 +9,35 @@ interface NavigationProps {
 
 export function Navigation({ onSearch, onNavigate }: NavigationProps) {
   const { user, signOut } = useAuth();
+  const [searchInput, setSearchInput] = useState("");
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchInput.trim()) {
+      onSearch?.(searchInput);
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
+    // Also trigger search on every keystroke for live results
+    onSearch?.(e.target.value);
+  };
+
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <div className="flex items-center gap-4">
-            <div className="relative h-8 w-16 overflow-hidden">
-              <img 
-                src={imgRectangle} 
-                alt="Trady Logo" 
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-              <img 
-                src={imgRectangle1} 
-                alt="Trady Logo" 
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-            </div>
+            <button 
+              onClick={() => onNavigate?.("home")}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className="bg-black text-white px-3 py-1 rounded-md">
+                TRADY
+              </div>
+            </button>
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-4">
@@ -48,15 +58,16 @@ export function Navigation({ onSearch, onNavigate }: NavigationProps) {
 
           {/* Search & Account */}
           <div className="flex items-center gap-3">
-            <div className="relative hidden sm:block">
+            <form onSubmit={handleSearchSubmit} className="relative hidden sm:block">
               <input
                 type="text"
                 placeholder="Search..."
+                value={searchInput}
+                onChange={handleSearchChange}
                 className="pl-9 pr-3 py-1.5 border-2 border-gray-300 rounded-full w-48 focus:outline-none focus:border-black transition-colors"
-                onChange={(e) => onSearch?.(e.target.value)}
               />
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            </div>
+            </form>
 
             {user ? (
               <>

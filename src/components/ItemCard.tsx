@@ -10,6 +10,7 @@ interface ItemCardProps {
   title: string;
   description: string;
   image?: string;
+  imageUrl?: string; // Support both prop names
   isAd?: boolean;
   onSave?: () => void;
   onClick?: () => void;
@@ -20,6 +21,7 @@ export function ItemCard({
   title, 
   description, 
   image, 
+  imageUrl,
   isAd = false,
   onSave,
   onClick 
@@ -68,6 +70,9 @@ export function ItemCard({
     }
   };
 
+  // Use either image or imageUrl prop
+  const imageSrc = image || imageUrl;
+
   return (
     <div 
       className="bg-white rounded-md shadow-sm hover:shadow-lg transition-shadow cursor-pointer group"
@@ -75,9 +80,9 @@ export function ItemCard({
     >
       <div className="relative">
         <div className="aspect-square bg-gray-200 rounded-t-md overflow-hidden">
-          {image ? (
+          {imageSrc ? (
             <ImageWithFallback 
-              src={image} 
+              src={imageSrc} 
               alt={title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
